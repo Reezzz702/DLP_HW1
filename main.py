@@ -20,16 +20,15 @@ def generate_linear(n=100):
 def generate_XOR_easy():
     inputs = []
     labels = []
-    
     for i in range(11):
         inputs.append([0.1 * i, 0.1 * i])
         labels.append(0)
 
-        if 0.1*i == 0.5:
+        if 0.1 * i == 0.5:
             continue
 
         inputs.append([0.1 * i, 1 - 0.1 * i])
-        labels.append(1)
+        labels.append(1)   
 
     return np.array(inputs), np.array(labels).reshape(21, 1)
 
@@ -53,52 +52,64 @@ def show_result(x, y, pred_y):
     
     plt.show()
 
+def show_learning_accuracy_curve(epochs, losses, accuracies):
+    plt.subplot(1, 2, 1)
+    plt.title('Learning curve', fontsize=18)
+    plt.plot(epochs, losses)
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+
+    plt.subplot(1, 2, 2)
+    plt.title('Accuracy curve', fontsize=18)
+    plt.plot(epochs, accuracies, 'g')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy(%)')
+    plt.show()
+
+
 class network():
-    def __init__(self, input_size, output_size, h1_size, h2_size, lr):
-        self.l1 = np.random.rand(input_size, h1_size)
-        self.l2 = np.random.rand(h1_size, h2_size)
-        self.l3 = np.random.rand(h2_size, output_size)
-        self.lr = lr
+    def __init__(self, input_size, output_size, h1_size, h2_size):
+        self.w1 = np.random.rand(input_size, h1_size)
+        self.w2 = np.random.rand(h1_size, h2_size)
+        self.w3 = np.random.rand(h2_size, output_size)
     
 
     def forward(self, x):
         self.x = x
-        self.z1 = self.sigmoid(self.x @ self.l1)
-        self.z2 = self.sigmoid(self.z1 @ self.l2)
-        self.pred_y = self.sigmoid(self.z2 @ self.l3)
+        self.z1 = sigmoid(self.x @ self.w1)
+        self.z2 = sigmoid(self.z1 @ self.w2)
+        self.z3 = sigmoid(self.z2 @ self.w3)
+        self.pred_y = self.z3
         return self.pred_y
     
 
-    def backward(self, y, pred_y):
-        dy = self.derivative_MSE(y, pred_y)
-        dz3 = self.derivative_sigmoid(self.pred_y)
-        dz2 = self.derivative_sigmoid(self.z2)
-        dz1 = self.derivative_sigmoid(self.z1)
+    def backpropagation(self, y):
+        dL_z3 = derivative_MSE(y, self.pred_y)
+        dz3_z2w2 = derivative_sigmoid(self.z3)
+        dz2_z1w2 = derivative_sigmoid(self.z2) #dz2_z1w2 = derivative_ReLU(self.z2)
+        dz1_xw1 = derivative_sigmoid(self.z1)  #dz1_xw1 = derivative_ReLU(self.z1)
 
-        d_l3 = self.z2.T @ (dz3 * dy)
-        d_l2 = self.z1.T @ (dz2 * ((dz3 * dy) @ self.l3.T))
-        d_l1 = self.x.T @ (dz1 * ((dz2 * ((dz3 * dy) @ self.l3.T)) @ self.l2.T))
+        self.dL_w3 = self.z2.T @ (dz3_z2w2 * dL_z3)
+        self.dL_w2 = self.z1.T @ (dz2_z1w2  * ((dz3_z2w2 * dL_z3) @ self.w3.T))
+        self.dL_w1 = self.x.T @ (dz1_xw1 * ((dz2_z1w2  * ((dz3_z2w2 * dL_z3) @ self.w3.T)) @ self.w2.T))
 
-        self.l1 = self.l1 - self.lr * d_l1
-        self.l2 = self.l2 - self.lr * d_l2
-        self.l3 = self.l3 - self.lr * d_l3
+    def update_weight(self, lr):
+        self.w1 = self.w1 - lr * self.dL_w1
+        self.w2 = self.w2 - lr * self.dL_w2
+        self.w3 = self.w3 - lr * self.dL_w3
 
     
-    @staticmethod
-    def sigmoid(x):
-        return 1.0/(1.0 + np.exp(-x))
 
-    @staticmethod
-    def derivative_sigmoid(x):
-        return np.multiply(x, 1.0 - x)
+def sigmoid(x):
+    return 1.0/(1.0 + np.exp(-x))
 
-    @staticmethod
-    def MSE(y, pred_y):
-        return np.mean(np.linalg.norm(y-pred_y))
-    
-    @staticmethod
-    def derivative_MSE(y, pred_y):
-        return -2 * (y - pred_y) / len(y)
+
+def derivative_sigmoid(x):
+    return np.multiply(x, 1.0 - x)
+
+
+def derivative_MSE(y, pred_y):
+    return -2 * (y - pred_y) / y.shape[0]
 
 
 
@@ -108,20 +119,22 @@ def train(args):
     else:
         x, y = generate_XOR_easy()
 
-    model = network(2, 1, 8, 4, args.lr)
+    model = network(2, 1, 8, 4)
 
     losses = []
     acc_list = []
-    for i in range(args.epoch):
+    for i in range(1, args.epoch + 1):
         pred_y = model.forward(x)
-        loss = model.MSE(y, pred_y)
+        loss = np.mean((y-pred_y) ** 2)
         losses.append(loss)
-        model.backward(y, pred_y)
+        model.backpropagation(y)
+        model.update_weight(args.lr)
         
         acc = np.sum(np.where(pred_y > 0.5, 1, 0) == y) / len(y) * 100
         acc_list.append(acc)
-        print(f"epoch {i+1} loss : {loss} acc(%) : {acc}")
-
+        if i % 1000 == 0:
+            print(f"epoch {i} loss : {loss} acc(%) : {acc}")
+    show_learning_accuracy_curve(range(1, args.epoch + 1), losses, acc_list)
     return model
 
 
