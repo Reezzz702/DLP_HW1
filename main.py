@@ -7,7 +7,7 @@ def generate_linear(n=100):
     inputs = []
     labels = []
     for pt in pts:
-        inputs.append(pt[0], pt[1])
+        inputs.append([pt[0], pt[1]])
         # distance = (pt[0]-pt[1])/1.414
         if pt[0] > pt[1]:
             labels.append(0)
@@ -19,19 +19,19 @@ def generate_linear(n=100):
 
 def generate_XOR_easy():
     inputs = []
-    lables = []
-
+    labels = []
+    
     for i in range(11):
-        inputs.append([0.1*i, 0.1*1])
-        lables.append(0)
+        inputs.append([0.1 * i, 0.1 * i])
+        labels.append(0)
 
         if 0.1*i == 0.5:
             continue
 
-        inputs.append([0.1*i, 1-0.1*1])
-        lables.append(1)
+        inputs.append([0.1 * i, 1 - 0.1 * i])
+        labels.append(1)
 
-    return np.array(inputs), np.array(lables).reshape(21, 1)
+    return np.array(inputs), np.array(labels).reshape(21, 1)
 
 
 def show_result(x, y, pred_y):
@@ -55,9 +55,9 @@ def show_result(x, y, pred_y):
 
 class network():
     def __init__(self, input_size, output_size, h1_size, h2_size, lr):
-        self.l1 = np.random.rand((input_size, h1_size))
-        self.l2 = np.random.rand((h1_size, h2_size))
-        self.output = np.random.rand((h2_size, output_size))
+        self.l1 = np.random.rand(input_size, h1_size)
+        self.l2 = np.random.rand(h1_size, h2_size)
+        self.l3 = np.random.rand(h2_size, output_size)
         self.lr = lr
     
 
@@ -65,7 +65,7 @@ class network():
         self.x = x
         self.z1 = self.sigmoid(self.x @ self.l1)
         self.z2 = self.sigmoid(self.z1 @ self.l2)
-        self.pred_y = self.sigmoid(self.z2 @ self.output)
+        self.pred_y = self.sigmoid(self.z2 @ self.l3)
         return self.pred_y
     
 
@@ -76,8 +76,8 @@ class network():
         dz1 = self.derivative_sigmoid(self.z1)
 
         d_l3 = self.z2.T @ (dz3 * dy)
-        d_l2 = self.z1.T @ (dz2 * ((dz3 * dy) @ self.output.T))
-        d_l1 = self.x.T @ (dz1 * ((dz2 * ((dz3 * dy) @ self.output.T)) @ self.l2.T))
+        d_l2 = self.z1.T @ (dz2 * ((dz3 * dy) @ self.l3.T))
+        d_l1 = self.x.T @ (dz1 * ((dz2 * ((dz3 * dy) @ self.l3.T)) @ self.l2.T))
 
         self.l1 = self.l1 - self.lr * d_l1
         self.l2 = self.l2 - self.lr * d_l2
@@ -101,15 +101,6 @@ class network():
         return -2 * (y - pred_y) / len(y)
 
 
-    def log_loss():
-        # TODO
-        pass
-
-
-    def log_pred(pred_y):
-        # TODO
-        pass
-
 
 def train(args):
     if args.task == "linear":
@@ -117,7 +108,7 @@ def train(args):
     else:
         x, y = generate_XOR_easy()
 
-    model = network(2, 1, 4, 4, args.lr)
+    model = network(2, 1, 8, 4, args.lr)
 
     losses = []
     acc_list = []
@@ -126,7 +117,7 @@ def train(args):
         loss = model.MSE(y, pred_y)
         losses.append(loss)
         model.backward(y, pred_y)
-
+        
         acc = np.sum(np.where(pred_y > 0.5, 1, 0) == y) / len(y) * 100
         acc_list.append(acc)
         print(f"epoch {i+1} loss : {loss} acc(%) : {acc}")
@@ -141,15 +132,19 @@ def test(args, model):
         x, y = generate_XOR_easy()
 
     pred_y = model.forward(x)
-    acc = np.sum(np.where(pred_y > 0.5, 1, 0) == y) / len(y) * 100
-
+    print(f"pred_y:\n{pred_y}")
+    pred_y = np.where(pred_y > 0.5, 1, 0)
+    acc = np.sum(pred_y == y) / len(y) * 100
+    print(20*"=")
+    print(f"Accuracy(%): {acc}")
+    show_result(x, y, pred_y)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", type=str, default="linear", help="select task: linear, xor")
     parser.add_argument("--lr", type=float, default=0.1, help="set learning rate")
     parser.add_argument("-A", "--activation_function", type=str, default="sigmoid", help="select activation function: sigmoid, ReLU, None")
-    parser.add_argument("--epoch", type=int, default=1000, help="number of training epoch")
+    parser.add_argument("--epoch", type=int, default=20000, help="number of training epoch")
 
     args = parser.parse_args() 
     model = train(args)
