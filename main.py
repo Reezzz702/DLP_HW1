@@ -52,7 +52,8 @@ def show_result(x, y, pred_y):
     
     plt.show()
 
-def show_learning_accuracy_curve(epochs, losses, accuracies):
+
+def show_curve(epochs, losses, accuracies):
     plt.subplot(1, 2, 1)
     plt.title('Learning curve', fontsize=18)
     plt.plot(epochs, losses)
@@ -67,46 +68,49 @@ def show_learning_accuracy_curve(epochs, losses, accuracies):
     plt.show()
 
 
-class network():
-    def __init__(self, input_size, output_size, h1_size, h2_size):
-        self.w1 = np.random.rand(input_size, h1_size)
-        self.w2 = np.random.rand(h1_size, h2_size)
-        self.w3 = np.random.rand(h2_size, output_size)
-    
-
+class Network():
+    def __init__(self, x_in, h1_neuron, h2_neuron, y_out):
+        np.random.seed(0)
+        self.w1 = np.random.randn(x_in, h1_neuron) 
+        self.w2 = np.random.randn(h1_neuron, h2_neuron) 
+        self.w3 = np.random.randn(h2_neuron, y_out)
+        
     def forward(self, x):
         self.x = x
-        self.z1 = sigmoid(self.x @ self.w1)
-        self.z2 = sigmoid(self.z1 @ self.w2)
+        self.z1 = sigmoid(x @ self.w1)          #self.z1 = ReLU(x @ self.w1)
+        self.z2 = sigmoid(self.z1 @ self.w2)    #self.z2 = ReLU(self.z1 @ self.w2)
         self.z3 = sigmoid(self.z2 @ self.w3)
         self.pred_y = self.z3
+
         return self.pred_y
-    
-
+        
+        
     def backpropagation(self, y):
-        dL_z3 = derivative_MSE(y, self.pred_y)
-        dz3_z2w2 = derivative_sigmoid(self.z3)
-        dz2_z1w2 = derivative_sigmoid(self.z2) #dz2_z1w2 = derivative_ReLU(self.z2)
-        dz1_xw1 = derivative_sigmoid(self.z1)  #dz1_xw1 = derivative_ReLU(self.z1)
+        dy = derivative_MSE(y, self.pred_y)
+        dz3 = derivative_sigmoid(self.z3)
+        dz2 = derivative_sigmoid(self.z2) #dz2 = derivative_ReLU(self.z2)
+        dz1 = derivative_sigmoid(self.z1)  #dz1 = derivative_ReLU(self.z1)
 
-        self.dL_w3 = self.z2.T @ (dz3_z2w2 * dL_z3)
-        self.dL_w2 = self.z1.T @ (dz2_z1w2  * ((dz3_z2w2 * dL_z3) @ self.w3.T))
-        self.dL_w1 = self.x.T @ (dz1_xw1 * ((dz2_z1w2  * ((dz3_z2w2 * dL_z3) @ self.w3.T)) @ self.w2.T))
+        self.d_l3 = self.z2.T @ (dz3 * dy)
+        self.d_l2 = self.z1.T @ (dz2  * ((dz3 * dy) @ self.w3.T))
+        self.d_l1 = self.x.T @ (dz1 * ((dz2  * ((dz3 * dy) @ self.w3.T)) @ self.w2.T))
+
+        # dy = derivative_MSE(y, self.pred_y)
+        # self.d_l3 = self.z2.T @ (dy)
+        # self.d_l2 = self.z1.T @ (((dy) @ self.w3.T))
+        # self.d_l1 = self.x.T @ (((((dy) @ self.w3.T)) @ self.w2.T))
 
     def update_weight(self, lr):
-        self.w1 = self.w1 - lr * self.dL_w1
-        self.w2 = self.w2 - lr * self.dL_w2
-        self.w3 = self.w3 - lr * self.dL_w3
+        self.w1 = self.w1 - lr * self.d_l1
+        self.w2 = self.w2 - lr * self.d_l2
+        self.w3 = self.w3 - lr * self.d_l3
 
     
-
 def sigmoid(x):
     return 1.0/(1.0 + np.exp(-x))
 
-
 def derivative_sigmoid(x):
     return np.multiply(x, 1.0 - x)
-
 
 def derivative_MSE(y, pred_y):
     return -2 * (y - pred_y) / y.shape[0]
@@ -119,7 +123,7 @@ def train(args):
     else:
         x, y = generate_XOR_easy()
 
-    model = network(2, 1, 8, 4)
+    model = Network(2, 8, 4, 1)
 
     losses = []
     acc_list = []
@@ -134,7 +138,7 @@ def train(args):
         acc_list.append(acc)
         if i % 1000 == 0:
             print(f"epoch {i} loss : {loss} acc(%) : {acc}")
-    show_learning_accuracy_curve(range(1, args.epoch + 1), losses, acc_list)
+    show_curve(range(1, args.epoch + 1), losses, acc_list)
     return model
 
 
@@ -151,6 +155,7 @@ def test(args, model):
     print(20*"=")
     print(f"Accuracy(%): {acc}")
     show_result(x, y, pred_y)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
