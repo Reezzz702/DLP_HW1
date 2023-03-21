@@ -76,33 +76,28 @@ class Network():
         
     def forward(self, x):
         self.x = x
-        # self.z1 = sigmoid(x @ self.w1)    
-        # self.z2 = sigmoid(self.z1 @ self.w2)
-        # self.z3 = sigmoid(self.z2 @ self.w3)
-
-        self.z1 = (x @ self.w1)    
-        self.z2 = (self.z1 @ self.w2)
-        self.z3 = (self.z2 @ self.w3)
-
+        self.z1 = sigmoid(x @ self.w1)          #self.z1 = ReLU(x @ self.w1)
+        self.z2 = sigmoid(self.z1 @ self.w2)    #self.z2 = ReLU(self.z1 @ self.w2)
+        self.z3 = sigmoid(self.z2 @ self.w3)
         self.pred_y = self.z3
 
         return self.pred_y
         
         
     def backpropagation(self, y):
-        # dy = derivative_MSE(y, self.pred_y)
-        # dz3 = derivative_sigmoid(self.z3)
-        # dz2 = derivative_sigmoid(self.z2)
-        # dz1 = derivative_sigmoid(self.z1)
-
-        # self.d_l3 = self.z2.T @ (dz3 * dy)
-        # self.d_l2 = self.z1.T @ (dz2  * ((dz3 * dy) @ self.w3.T))
-        # self.d_l1 = self.x.T @ (dz1 * ((dz2  * ((dz3 * dy) @ self.w3.T)) @ self.w2.T))
-
         dy = derivative_MSE(y, self.pred_y)
-        self.d_l3 = self.z2.T @ (dy)
-        self.d_l2 = self.z1.T @ (((dy) @ self.w3.T))
-        self.d_l1 = self.x.T @ (((((dy) @ self.w3.T)) @ self.w2.T))
+        dz3 = derivative_sigmoid(self.z3)
+        dz2 = derivative_sigmoid(self.z2) #dz2 = derivative_ReLU(self.z2)
+        dz1 = derivative_sigmoid(self.z1)  #dz1 = derivative_ReLU(self.z1)
+
+        self.d_l3 = self.z2.T @ (dz3 * dy)
+        self.d_l2 = self.z1.T @ (dz2  * ((dz3 * dy) @ self.w3.T))
+        self.d_l1 = self.x.T @ (dz1 * ((dz2  * ((dz3 * dy) @ self.w3.T)) @ self.w2.T))
+
+        # dy = derivative_MSE(y, self.pred_y)
+        # self.d_l3 = self.z2.T @ (dy)
+        # self.d_l2 = self.z1.T @ (((dy) @ self.w3.T))
+        # self.d_l1 = self.x.T @ (((((dy) @ self.w3.T)) @ self.w2.T))
 
     def update_weight(self, lr):
         self.w1 = self.w1 - lr * self.d_l1
@@ -127,7 +122,7 @@ def train(args):
     else:
         x, y = generate_XOR_easy()
 
-    model = Network(2, 4, 4, 1)
+    model = Network(2, 8, 8, 1)
 
     losses = []
     acc_list = []
