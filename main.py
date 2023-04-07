@@ -165,7 +165,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", type=str, default="linear", help="select task: linear, xor")
     parser.add_argument("--lr", type=float, default=0.1, help="set learning rate")
-    parser.add_argument("-A", "--activation_function", type=str, default="sigmoid", help="select activation function: sigmoid, None")
     parser.add_argument("--epoch", type=int, default=20000, help="number of training epoch")
 
     args = parser.parse_args() 
